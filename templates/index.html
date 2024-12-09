@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Computer Vision API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .drag-active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100">
+    <header class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+            <h1 class="text-3xl font-bold text-gray-900">Computer Vision API</h1>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <div class="grid gap-8 md:grid-cols-2">
+            <!-- Image Processing Section -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <i data-lucide="camera" class="h-6 w-6 text-blue-600"></i>
+                    <h2 class="text-xl font-semibold">Image Processing</h2>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">
+                    Upload an image to detect and count objects with confidence >= 50%.
+                </p>
+                <div id="image-dropzone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer">
+                    <i data-lucide="upload" class="mx-auto h-12 w-12 text-gray-400"></i>
+                    <p class="mt-2 text-sm text-gray-600">
+                        Drag and drop your image here, or click to select
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Supported formats: .jpg, .jpeg, .png
+                    </p>
+                    <input type="file" id="image-input" accept=".jpg,.jpeg,.png" class="hidden">
+                </div>
+                <div id="image-preview" class="mt-4 hidden">
+                    <img id="preview-image" class="max-h-64 mx-auto rounded-lg">
+                </div>
+                <div id="image-error" class="mt-4 p-4 bg-red-50 text-red-700 rounded-lg hidden"></div>
+                <div class="mt-4 flex gap-2">
+                    <button id="process-image" class="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Process Image
+                    </button>
+                    <button onclick="resetSection('image')" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                        Reset
+                    </button>
+                </div>
+                <div id="image-results" class="mt-6 bg-white rounded-lg shadow-sm border border-gray-100 p-4 hidden"></div>
+            </div>
+
+            <!-- Video Processing Section -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center gap-2 mb-4">
+                    <i data-lucide="video" class="h-6 w-6 text-blue-600"></i>
+                    <h2 class="text-xl font-semibold">Video Processing</h2>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">
+                    Upload a video to analyze frames (1 FPS) and count detected objects with confidence >= 50%.
+                </p>
+                <div id="video-dropzone" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer">
+                    <i data-lucide="upload" class="mx-auto h-12 w-12 text-gray-400"></i>
+                    <p class="mt-2 text-sm text-gray-600">
+                        Drag and drop your video here, or click to select
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Supported formats: .mp4
+                    </p>
+                    <input type="file" id="video-input" accept=".mp4" class="hidden">
+                </div>
+                <div id="video-preview" class="mt-4 hidden">
+                    <video id="preview-video" controls class="max-h-64 w-full rounded-lg"></video>
+                </div>
+                <div id="video-error" class="mt-4 p-4 bg-red-50 text-red-700 rounded-lg hidden"></div>
+                <div class="mt-4 flex gap-2">
+                    <button id="process-video" class="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Process Video
+                    </button>
+                    <button onclick="resetSection('video')" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                        Reset
+                    </button>
+                </div>
+                <div id="video-results" class="mt-6 bg-white rounded-lg shadow-sm border border-gray-100 p-4 hidden"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Setup drag and drop for both sections
+        ['image', 'video'].forEach(type => {
+            console.log('test index page');
+            const dropzone = document.getElementById(`${type}-dropzone`);
+            const input = document.getElementById(`${type}-input`);
+            const preview = document.getElementById(`${type}-preview`);
+            const previewElement = document.getElementById(`preview-${type}`);
+            const processButton = document.getElementById(`process-${type}`);
+            const errorElement = document.getElementById(`${type}-error`);
+            const resultsElement = document.getElementById(`${type}-results`);
+
+            dropzone.addEventListener('click', () => input.click());
+
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('drag-active');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('drag-active');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('drag-active');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0], type);
+                }
+            });
+
+            input.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0], type);
+                }
+            });
+
+            processButton.addEventListener('click', () => {
+                const file = input.files[0];
+                if (file) {
+                    processFile(file, type);
+                }
+            });
+        });
+
+        function handleFile(file, type) {
+            console.log('test file handle');
+            const input = document.getElementById(`${type}-input`);
+            const preview = document.getElementById(`${type}-preview`);
+            const previewElement = document.getElementById(`preview-${type}`);
+            const processButton = document.getElementById(`process-${type}`);
+            const errorElement = document.getElementById(`${type}-error`);
+            const resultsElement = document.getElementById(`${type}-results`);
+
+            // Reset error and results
+            errorElement.classList.add('hidden');
+            resultsElement.classList.add('hidden');
+
+            // Validate file type
+            const allowedTypes = type === 'image' 
+                ? ['image/jpeg', 'image/jpg', 'image/png']
+                : ['video/mp4'];
+
+
+            if (!allowedTypes.includes(file.type)) {
+                errorElement.textContent = `Invalid file type. Please upload a ${type === 'image' ? 'JPG or PNG image' : 'MP4 video'}.`;
+                errorElement.classList.remove('hidden');
+                return;
+            }
+
+            // Validate file size
+            const maxSize = type === 'image' ? 5 * 1024 * 1024 : 50 * 1024 * 1024; // 5MB for images, 50MB for videos
+            if (file.size > maxSize) {
+                errorElement.textContent = `File size exceeds the maximum limit (${maxSize / 1024 / 1024}MB)`;
+                errorElement.classList.remove('hidden');
+                return;
+            }
+
+            // Update file input and preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewElement.src = e.target.result;
+                preview.classList.remove('hidden');
+                processButton.disabled = false;
+            };
+            reader.readAsDataURL(file);
+
+            // Update file input
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            input.files = dataTransfer.files;
+        }
+
+        async function processFile(file, type) {
+            const processButton = document.getElementById(`process-${type}`);
+            const errorElement = document.getElementById(`${type}-error`);
+            const resultsElement = document.getElementById(`${type}-results`);
+
+            // Show loading state
+            processButton.disabled = true;
+            processButton.innerHTML = `<i data-lucide="loader-2" class="animate-spin mr-2 h-4 w-4"></i>Processing ${type}...`;
+            lucide.createIcons();
+
+            try {
+                const formData = new FormData();
+                formData.append(type, file);
+
+                const response = await fetch(`/${type === 'image' ? 'detect' : 'process_video'}`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Display results
+                const counts = data.class_counts;
+                if (Object.keys(counts).length === 0) {
+                    resultsElement.innerHTML = `
+                        <h3 class="text-lg font-semibold mb-3">Detection Results</h3>
+                        <p class="text-gray-500">No objects detected with confidence >= 50%</p>
+                    `;
+                } else {
+                    resultsElement.innerHTML = `
+                        <h3 class="text-lg font-semibold mb-3">Detection Results</h3>
+                        <div class="space-y-2">
+                            ${Object.entries(counts).map(([className, count]) => `
+                                <div class="flex justify-between items-center p-2 hover:bg-gray-50 rounded-lg">
+                                    <span class="text-gray-700 font-medium">${className}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm text-gray-500">Count:</span>
+                                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-medium">
+                                            ${count}
+                                        </span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+                resultsElement.classList.remove('hidden');
+                errorElement.classList.add('hidden');
+            } catch (error) {
+                errorElement.textContent = error.message || 'An error occurred while processing the file';
+                errorElement.classList.remove('hidden');
+                resultsElement.classList.add('hidden');
+            } finally {
+                // Reset button state
+                processButton.disabled = false;
+                processButton.innerHTML = `Process ${type}`;
+            }
+        }
+
+        function resetSection(type) {
+            const input = document.getElementById(`${type}-input`);
+            const preview = document.getElementById(`${type}-preview`);
+            const processButton = document.getElementById(`process-${type}`);
+            const errorElement = document.getElementById(`${type}-error`);
+            const resultsElement = document.getElementById(`${type}-results`);
+
+            input.value = '';
+            preview.classList.add('hidden');
+            processButton.disabled = true;
+            errorElement.classList.add('hidden');
+            resultsElement.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
